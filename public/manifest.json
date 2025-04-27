@@ -1,0 +1,7 @@
+{
+  "name": "Vibe ThreeJS Game",
+  "short_name": "Vibe Game",
+  "start_url": "/",
+  "display": "fullscreen",
+  "icons": [{ "src": "/splash.png", "sizes": "512x512", "type": "image/png" }]
+} 

@@ -1,4 +1,12 @@
 import { Player } from '../src/components/Player';
+import { controls } from '../src/utils/controls';
+
+// Mock the controls module
+jest.mock('../src/utils/controls', () => ({
+  controls: {
+    getInput: jest.fn()
+  }
+}));
 
 describe('Player', () => {
   let player;
@@ -9,6 +17,9 @@ describe('Player', () => {
       add: jest.fn()
     };
     player = new Player(mockScene);
+    
+    // Reset the mock before each test
+    controls.getInput.mockReset();
   });
   
   test('creates a mesh with correct geometry and material', () => {
@@ -20,9 +31,14 @@ describe('Player', () => {
     const originalX = player.mesh.position.x;
     const originalY = player.mesh.position.y;
     
+    // Mock input values
+    controls.getInput.mockReturnValue({ x: 1, y: 1 });
+    
     player.update();
     
     expect(player.mesh.position.x).not.toBe(originalX);
     expect(player.mesh.position.y).not.toBe(originalY);
+    expect(player.mesh.position.x).toBe(0.1); // x should increase by 0.1 (1 * 0.1)
+    expect(player.mesh.position.y).toBe(0.1); // y should increase by 0.1 (1 * 0.1)
   });
 }); 

@@ -1,8 +1,15 @@
 import { defineConfig } from 'vite';
-import size from 'vite-plugin-size';
+import { visualizer } from 'rollup-plugin-visualizer';
 
 export default defineConfig({
-  plugins: [size()],
+  plugins: [
+    visualizer({
+      open: true,
+      gzipSize: true,
+      brotliSize: true,
+      filename: 'dist/stats.html'
+    })
+  ],
   build: {
     outDir: 'dist',
     assetsDir: 'assets',

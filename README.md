@@ -1,3 +1,5 @@
+![Retro SNES Logo for Vibe Coding Game Template](https://i.ibb.co/whBxBjvL/vibe-coding-game-template-logo.png)
+
 # Vibe Coding Game Template 🎮
 
 A modular, optimization-minded template for creating ThreeJS games with a focus on performance and maintainability.

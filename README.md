@@ -1,10 +1,10 @@
-# Vibe Coding Game Template
+# Vibe Coding Game Template 🎮
 
 A modular, optimization-minded template for creating ThreeJS games with a focus on performance and maintainability.
 
 ## Features
 
-- 🎮 ThreeJS-based game engine
+- 🕹 ThreeJS-based game engine
 - 📱 Mobile-first design with touch controls
 - 🎨 Custom shaders for procedural effects
 - 🌐 WebSocket-based multiplayer support

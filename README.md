@@ -11,8 +11,8 @@ A modular, optimization-minded template for creating ThreeJS games with a focus 
 
 ## Features
 
-- 🕹 ThreeJS-based game engine
-- 📱 Mobile-first design with touch controls
+- 🕹 ThreeJS-based game template
+- 📱 Mobile-touch control supported
 - 🎨 Custom shaders for procedural effects
 - 🌐 WebSocket-based multiplayer support
 - 🚀 Optimized asset loading and caching

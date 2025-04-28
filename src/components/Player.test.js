@@ -1,8 +1,8 @@
-import { Player } from '../src/components/Player';
-import { controls } from '../src/utils/controls';
+import { Player } from './Player';
+import { controls } from '../utils/controls';
 
 // Mock the controls module
-jest.mock('../src/utils/controls', () => ({
+jest.mock('../utils/controls', () => ({
   controls: {
     getInput: jest.fn()
   }

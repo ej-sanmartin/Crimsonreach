@@ -33,7 +33,6 @@ vibe-coded-game/
 │   ├── utils/                         # Helper functions
 │   ├── scenes/                        # Game scenes
 │   └── multiplayer/                   # Multiplayer logic
-├── tests/                             # Unit tests
 └── config files                       # Various configuration files
 ```
 

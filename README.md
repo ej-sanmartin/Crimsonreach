@@ -72,6 +72,49 @@ vibe-coded-game/
 - Implement object pooling
 - Use WebGL 2.0 features when available
 
+## Vibe Coding Guide 🎯
+
+Vibe coding is an iterative, creative approach to game development that emphasizes rapid prototyping and continuous playtesting. Here's how to get started:
+
+1. **Vision First**: Start with a clear vision of your game's core mechanics and feel. What's the one thing that makes your game special?
+
+2. **Incremental Vibing**: 
+   - Build one feature at a time
+   - Playtest after each feature
+   - Adjust based on how it feels
+   - Keep what works, iterate on what doesn't
+
+3. **Playtest Early, Playtest Often**:
+   - Test with real players
+   - Gather feedback
+   - Make quick adjustments
+   - Don't be afraid to pivot
+
+4. **Keep It Simple**:
+   - Start with basic mechanics
+   - Add complexity only when needed
+   - Focus on the fun factor
+   - Remove anything that doesn't contribute to the core experience
+
+## Example Game Ideas 🎮
+
+Here are three simple game concepts that can be built quickly using this template:
+
+1. **Space Hopper**
+   - A zero-gravity platformer where players bounce between asteroids
+   - Core mechanic: Physics-based bouncing with momentum
+   - Perfect for testing procedural generation and physics
+
+2. **Pixel Painter**
+   - A multiplayer art game where players paint on a shared canvas
+   - Core mechanic: Real-time color placement and blending
+   - Great for testing WebSocket multiplayer and shader effects
+
+3. **Rhythm Runner**
+   - An endless runner that syncs with music beats
+   - Core mechanic: Procedural level generation based on audio analysis
+   - Excellent for testing audio processing and procedural generation
+
 ## Contributing
 
 1. Fork the repository

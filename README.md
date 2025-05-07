@@ -58,6 +58,30 @@ vibe-coded-game/
    npm test
    ```
 
+## Deployment 🚀
+
+This template is optimized for deployment on Vercel. Here's how to deploy your game:
+
+1. **Prepare Your Project**:
+   ```bash
+   npm run build
+   ```
+   This creates an optimized production build in the `dist` directory.
+
+2. **Deploy to Vercel**:
+   - Push your code to a GitHub repository
+   - Go to [Vercel](https://vercel.com)
+   - Import your repository
+   - Vercel will automatically detect the Vite configuration
+   - Click "Deploy"
+
+The template includes a `vercel.json` configuration that:
+- Handles client-side routing
+- Optimizes asset caching for better performance
+- Configures proper headers for static assets
+
+Your game will be live at `your-project-name.vercel.app` after deployment.
+
 ## Asset Optimization
 
 - Models: Use gltfpack to compress GLTF models

@@ -38,22 +38,30 @@ vibe-coded-game/
 
 ## Getting Started
 
-1. Install dependencies:
+1. **Fork and Clone**:
+   - Click the "Fork" button in the top right of this repository
+   - Clone your forked repository:
+     ```bash
+     git clone https://github.com/YOUR_USERNAME/vibe_code_game_template.git
+     cd vibe_code_game_template
+     ```
+
+2. **Install dependencies**:
    ```bash
    npm install
    ```
 
-2. Start development server:
+3. **Start development server**:
    ```bash
    npm run dev
    ```
 
-3. Build for production:
+4. **Build for production**:
    ```bash
    npm run build
    ```
 
-4. Run tests:
+5. **Run tests**:
    ```bash
    npm test
    ```

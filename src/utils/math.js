@@ -20,6 +20,50 @@ export function lerp(a, b, t) {
 }
 
 /**
+ * Spherical linear interpolation between two quaternions
+ * @param {THREE.Quaternion} qa - Start quaternion
+ * @param {THREE.Quaternion} qb - End quaternion
+ * @param {THREE.Quaternion} qm - Output quaternion
+ * @param {number} t - Interpolation factor (0-1)
+ */
+export function slerp(qa, qb, qm, t) {
+  // Calculate angle between quaternions
+  let cosHalfTheta = qa.w * qb.w + qa.x * qb.x + qa.y * qb.y + qa.z * qb.z;
+  
+  // If qa=qb or qa=-qb then theta = 0 and we can return qa
+  if (Math.abs(cosHalfTheta) >= 1.0) {
+    qm.w = qa.w;
+    qm.x = qa.x;
+    qm.y = qa.y;
+    qm.z = qa.z;
+    return;
+  }
+  
+  // Calculate temporary values
+  const halfTheta = Math.acos(cosHalfTheta);
+  const sinHalfTheta = Math.sqrt(1.0 - cosHalfTheta * cosHalfTheta);
+  
+  // If theta = 180 degrees then result is not fully defined
+  // we could rotate around any axis normal to qa or qb
+  if (Math.abs(sinHalfTheta) < 0.001) {
+    qm.w = (qa.w * 0.5 + qb.w * 0.5);
+    qm.x = (qa.x * 0.5 + qb.x * 0.5);
+    qm.y = (qa.y * 0.5 + qb.y * 0.5);
+    qm.z = (qa.z * 0.5 + qb.z * 0.5);
+    return;
+  }
+  
+  const ratioA = Math.sin((1 - t) * halfTheta) / sinHalfTheta;
+  const ratioB = Math.sin(t * halfTheta) / sinHalfTheta;
+  
+  // Calculate Quaternion
+  qm.w = (qa.w * ratioA + qb.w * ratioB);
+  qm.x = (qa.x * ratioA + qb.x * ratioB);
+  qm.y = (qa.y * ratioA + qb.y * ratioB);
+  qm.z = (qa.z * ratioA + qb.z * ratioB);
+}
+
+/**
  * Dot product of two 3D vectors
  * @param {{x:number, y:number, z:number}} a
  * @param {{x:number, y:number, z:number}} b

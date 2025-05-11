@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { controls } from '../utils/controls';
+import { slerp } from '../utils/math';
 
 export class Player {
   constructor(scene) {
@@ -15,6 +16,23 @@ export class Player {
     this.pitch = 0; // Vertical look angle
     this.yaw = 0; // Horizontal look angle
     this.mouseSensitivity = 0.002;
+    
+    // Create dagger weapon
+    this.dagger = new THREE.Group();
+    // Dagger blade
+    const blade = new THREE.Mesh(
+      new THREE.ConeGeometry(0.02, 0.3, 8),
+      new THREE.MeshBasicMaterial({ color: 0xC0C0C0 })
+    );
+    blade.position.y = 0.15; // Center the blade
+    // Rotate blade to point forward instead of up
+    blade.rotation.x = -Math.PI / 2;
+    this.dagger.add(blade);
+    // Position dagger in front of player
+    this.dagger.position.set(0, -0.4, -0.5); // Centered horizontally (0.3 -> 0)
+    // Set initial rotation to point towards center
+    this.dagger.rotation.set(0.2, 0, 0); // Adjusted yaw to point straight ahead (-0.1 -> 0)
+    scene.add(this.dagger);
     
     this.initCameraControls();
     
@@ -32,6 +50,7 @@ export class Player {
     this.attackCooldown = 0;
     this.attackDuration = 12; // frames
     this.attackTimer = 0;
+    this.attackDistance = 0.5; // How far the dagger extends during attack
     
     // Special ability
     this.specialCooldown = 0;
@@ -64,15 +83,40 @@ export class Player {
     this.lastX = 0;
     this.lastY = 0;
     
-    // Lock pointer on click
+    // Create minimal lock status indicator
+    this.lockIndicator = document.createElement('div');
+    this.lockIndicator.style.position = 'fixed';
+    this.lockIndicator.style.top = '10px';
+    this.lockIndicator.style.right = '10px';
+    this.lockIndicator.style.width = '8px';
+    this.lockIndicator.style.height = '8px';
+    this.lockIndicator.style.borderRadius = '50%';
+    this.lockIndicator.style.backgroundColor = 'rgba(255, 0, 0, 0.5)';
+    this.lockIndicator.style.transition = 'background-color 0.3s';
+    this.lockIndicator.style.pointerEvents = 'none';
+    document.body.appendChild(this.lockIndicator);
+    
     const canvas = document.getElementById('game-canvas');
-    canvas.addEventListener('click', () => {
-      canvas.requestPointerLock();
-    });
+    
+    // Request pointer lock on game start
+    canvas.requestPointerLock();
+    
+    // Store last known angles to prevent snapping
+    let lastYaw = this.yaw;
+    let lastPitch = this.pitch;
     
     // Handle pointer lock change
     document.addEventListener('pointerlockchange', () => {
       this.isDragging = document.pointerLockElement === canvas;
+      // Update indicator color
+      this.lockIndicator.style.backgroundColor = this.isDragging ? 
+        'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)';
+      
+      // Restore last known angles when lock changes
+      if (this.isDragging) {
+        this.yaw = lastYaw;
+        this.pitch = lastPitch;
+      }
     });
     
     // Handle mouse movement
@@ -84,13 +128,27 @@ export class Player {
         
         // Clamp pitch to prevent over-rotation
         this.pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, this.pitch));
+        
+        // Store current angles
+        lastYaw = this.yaw;
+        lastPitch = this.pitch;
       }
     });
     
-    // Handle escape key to exit pointer lock
+    // Handle Tab key to toggle pointer lock
+    let lastTabPress = 0;
     document.addEventListener('keydown', (e) => {
-      if (e.code === 'Escape' && document.pointerLockElement === canvas) {
-        document.exitPointerLock();
+      if (e.code === 'Tab') {
+        e.preventDefault(); // Prevent default tab behavior
+        const now = Date.now();
+        if (now - lastTabPress > 300) { // Prevent rapid toggling
+          lastTabPress = now;
+          if (document.pointerLockElement === canvas) {
+            document.exitPointerLock();
+          } else {
+            canvas.requestPointerLock();
+          }
+        }
       }
     });
   }
@@ -220,22 +278,6 @@ export class Player {
       this.isGrounded = true;
     }
     
-    // Attack logic
-    if (this.isAttacking) {
-      const stabAmount = Math.sin((Math.PI * (this.attackDuration - this.attackTimer)) / this.attackDuration) * 0.3;
-      this.mesh.position.z = stabAmount;
-      this.attackTimer--;
-      if (this.attackTimer <= 0) {
-        this.isAttacking = false;
-        this.mesh.position.z = 0;
-      }
-    }
-    
-    if (this.attackCooldown > 0) this.attackCooldown--;
-    if (this.specialCooldown > 0) this.specialCooldown--;
-    
-    this.updateBoomerangs();
-    
     // Update camera position and rotation
     if (this.scene && this.scene.camera) {
       const cam = this.scene.camera;
@@ -246,6 +288,65 @@ export class Player {
       
       // Set camera rotation based on yaw and pitch
       cam.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
+      
+      // Update dagger position and rotation to follow camera
+      this.dagger.position.copy(cam.position);
+      this.dagger.rotation.copy(cam.rotation);
+      
+      // Offset dagger in front of camera
+      const daggerOffset = new THREE.Vector3(0.5, -0.4, -0.5);
+      daggerOffset.applyQuaternion(cam.quaternion);
+      this.dagger.position.add(daggerOffset);
+      
+      // Attack animation
+      if (this.isAttacking) {
+        // Calculate attack progress (0 to 1)
+        const progress = this.attackTimer / this.attackDuration;
+        // Create a smooth arc motion for the attack
+        const attackArc = Math.sin(progress * Math.PI);
+        
+        // Create quaternions for start and end rotations
+        const startQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(
+          0.2,  // Initial slight upward tilt
+          -0.2, // Initial pointing towards center
+          0
+        ));
+        
+        const endQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(
+          -0.2, // End with downward tilt
+          -0.2, // End pointing towards center
+          0
+        ));
+        
+        // Slerp between start and end rotations
+        const attackQuat = new THREE.Quaternion();
+        slerp(startQuat, endQuat, attackQuat, attackArc);
+        
+        // Apply the slerped rotation
+        this.dagger.quaternion.copy(cam.quaternion);
+        this.dagger.quaternion.multiply(attackQuat);
+        
+        // Move dagger forward and towards center during attack
+        const attackOffset = new THREE.Vector3(
+          -attackArc * 0.3, // Move towards center
+          -attackArc * 0.1, // Slight downward motion
+          -attackArc * this.attackDistance // Forward motion
+        );
+        attackOffset.applyQuaternion(cam.quaternion);
+        this.dagger.position.add(attackOffset);
+        
+        this.attackTimer--;
+        if (this.attackTimer <= 0) {
+          this.isAttacking = false;
+          // Reset dagger rotation to initial position
+          this.dagger.rotation.set(0.2, -0.2, 0);
+        }
+      }
     }
+    
+    if (this.attackCooldown > 0) this.attackCooldown--;
+    if (this.specialCooldown > 0) this.specialCooldown--;
+    
+    this.updateBoomerangs();
   }
 } 

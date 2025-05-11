@@ -4,28 +4,48 @@
 export const controls = {
   input: { x: 0, y: 0 },
   isTouching: false,
+  keys: {},
   
   init() {
-    // Detect if device supports touch
-    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    // Keyboard controls
+    window.addEventListener('keydown', (e) => {
+      this.keys[e.code] = true;
+      this.updateMovement();
+    });
     
-    if (isTouchDevice) {
-      // Touch events for mobile devices
+    window.addEventListener('keyup', (e) => {
+      this.keys[e.code] = false;
+      this.updateMovement();
+    });
+    
+    // Touch controls for mobile
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
       window.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: true });
       window.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: false });
       window.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: true });
-    } else {
-      // Mouse events for desktop
-      window.addEventListener('mousemove', this.handleMouseMove.bind(this), { passive: true });
     }
     
     // Cleanup on page unload
     window.addEventListener('unload', this.cleanup.bind(this));
   },
   
-  handleMouseMove(event) {
-    this.input.x = (event.clientX / window.innerWidth) * 2 - 1;
-    this.input.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  updateMovement() {
+    // Reset input
+    this.input.x = 0;
+    this.input.y = 0;
+    
+    // WASD movement
+    if (this.keys['KeyW']) this.input.y = 1;   // Forward
+    if (this.keys['KeyS']) this.input.y = -1;  // Backward
+    if (this.keys['KeyA']) this.input.x = -1;  // Left
+    if (this.keys['KeyD']) this.input.x = 1;   // Right
+    
+    // Normalize diagonal movement
+    if (this.input.x !== 0 && this.input.y !== 0) {
+      const length = Math.sqrt(this.input.x * this.input.x + this.input.y * this.input.y);
+      this.input.x /= length;
+      this.input.y /= length;
+    }
   },
   
   handleTouchStart(event) {
@@ -55,7 +75,8 @@ export const controls = {
   
   cleanup() {
     // Remove all possible event listeners
-    window.removeEventListener('mousemove', this.handleMouseMove);
+    window.removeEventListener('keydown', this.handleKeyDown);
+    window.removeEventListener('keyup', this.handleKeyUp);
     window.removeEventListener('touchstart', this.handleTouchStart);
     window.removeEventListener('touchmove', this.handleTouchMove);
     window.removeEventListener('touchend', this.handleTouchEnd);

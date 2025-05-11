@@ -9,29 +9,49 @@ export class Player {
     );
     scene.add(this.mesh);
     this.scene = scene;
-    this.orbitAngle = 0;
-    this.zoom = 5;
+    
+    // First person camera settings
+    this.cameraHeight = 1.7; // Average eye height
+    this.pitch = 0; // Vertical look angle
+    this.yaw = 0; // Horizontal look angle
+    this.mouseSensitivity = 0.002;
+    
     this.initCameraControls();
-    // Movement and jump
+    
+    // Movement and physics
     this.velocity = new THREE.Vector3();
+    this.acceleration = 0.03;
+    this.deceleration = 0.95;
+    this.maxSpeed = 0.25;
     this.isGrounded = true;
     this.jumpStrength = 0.18;
     this.gravity = -0.01;
+    
     // Attack
     this.isAttacking = false;
     this.attackCooldown = 0;
     this.attackDuration = 12; // frames
     this.attackTimer = 0;
+    
     // Special ability
     this.specialCooldown = 0;
     this.activeSpecial = 'boomerang';
     this.boomerangs = [];
+    
     // Listen for attack/jump input
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Space') this.tryJump();
-      if (e.code === 'KeyA') this.tryAttack();
-      if (e.code === 'KeyS') this.trySpecial();
+      if (e.code === 'KeyQ') this.tryAttack();
+      if (e.code === 'KeyE') this.trySpecial();
     });
+    
+    // Add mouse click for attack
+    window.addEventListener('mousedown', (e) => {
+      if (e.button === 0) { // Left click
+        this.tryAttack();
+      }
+    });
+    
     // MobileControls integration
     if (window && window.MobileControlsInstance) {
       window.MobileControlsInstance.buttons.attack.onclick = () => this.tryAttack();
@@ -43,50 +63,34 @@ export class Player {
     this.isDragging = false;
     this.lastX = 0;
     this.lastY = 0;
-    window.addEventListener('mousedown', (e) => {
-      this.isDragging = true;
-      this.lastX = e.clientX;
+    
+    // Lock pointer on click
+    const canvas = document.getElementById('game-canvas');
+    canvas.addEventListener('click', () => {
+      canvas.requestPointerLock();
     });
-    window.addEventListener('mouseup', () => {
-      this.isDragging = false;
+    
+    // Handle pointer lock change
+    document.addEventListener('pointerlockchange', () => {
+      this.isDragging = document.pointerLockElement === canvas;
     });
-    window.addEventListener('mousemove', (e) => {
+    
+    // Handle mouse movement
+    document.addEventListener('mousemove', (e) => {
       if (this.isDragging) {
-        const dx = e.clientX - this.lastX;
-        this.orbitAngle -= dx * 0.01;
-        this.lastX = e.clientX;
+        // Update yaw (horizontal) and pitch (vertical) angles
+        this.yaw -= e.movementX * this.mouseSensitivity;
+        this.pitch -= e.movementY * this.mouseSensitivity;
+        
+        // Clamp pitch to prevent over-rotation
+        this.pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, this.pitch));
       }
     });
-    window.addEventListener('wheel', (e) => {
-      this.zoom += e.deltaY * 0.01;
-      this.zoom = Math.max(2, Math.min(12, this.zoom));
-    });
-    // Touch controls for mobile
-    let lastTouchDist = null;
-    window.addEventListener('touchstart', (e) => {
-      if (e.touches.length === 1) {
-        this.isDragging = true;
-        this.lastX = e.touches[0].clientX;
-      } else if (e.touches.length === 2) {
-        lastTouchDist = Math.abs(e.touches[0].clientX - e.touches[1].clientX);
-      }
-    });
-    window.addEventListener('touchend', () => {
-      this.isDragging = false;
-      lastTouchDist = null;
-    });
-    window.addEventListener('touchmove', (e) => {
-      if (e.touches.length === 1 && this.isDragging) {
-        const dx = e.touches[0].clientX - this.lastX;
-        this.orbitAngle -= dx * 0.01;
-        this.lastX = e.touches[0].clientX;
-      } else if (e.touches.length === 2) {
-        const dist = Math.abs(e.touches[0].clientX - e.touches[1].clientX);
-        if (lastTouchDist !== null) {
-          this.zoom += (lastTouchDist - dist) * 0.01;
-          this.zoom = Math.max(2, Math.min(12, this.zoom));
-        }
-        lastTouchDist = dist;
+    
+    // Handle escape key to exit pointer lock
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Escape' && document.pointerLockElement === canvas) {
+        document.exitPointerLock();
       }
     });
   }
@@ -120,8 +124,13 @@ export class Player {
       new THREE.MeshBasicMaterial({ color: 0xffcc00 })
     );
     mesh.position.copy(this.mesh.position);
+    // Calculate forward direction based on camera yaw
     mesh.userData = {
-      direction: new THREE.Vector3(Math.sin(this.orbitAngle), 0, Math.cos(this.orbitAngle)),
+      direction: new THREE.Vector3(
+        Math.cos(this.yaw),  // Swapped sin with cos
+        0,                    // No vertical component
+        Math.sin(this.yaw)   // Swapped cos with sin
+      ),
       time: 0
     };
     this.scene.add(mesh);
@@ -151,19 +160,67 @@ export class Player {
 
   update() {
     const input = controls.getInput();
-    // Horizontal movement
-    this.mesh.position.x += input.x * 0.13;
-    // Only allow y movement for jump/vertical
-    // Gravity
+    
+    // Calculate forward and right vectors based on camera direction
+    // Forward is along negative Z axis in Three.js
+    const forward = new THREE.Vector3(
+      -Math.sin(this.yaw),  // Forward X
+      0,
+      -Math.cos(this.yaw)   // Forward Z
+    );
+    
+    // Right is perpendicular to forward
+    const right = new THREE.Vector3(
+      Math.cos(this.yaw),   // Right X
+      0,
+      -Math.sin(this.yaw)   // Right Z
+    );
+    
+    // Calculate desired velocity based on input and camera direction
+    const desiredVelocity = new THREE.Vector3();
+    
+    // Forward/backward movement
+    if (input.y !== 0) {
+      desiredVelocity.addScaledVector(forward, input.y);
+    }
+    
+    // Left/right movement
+    if (input.x !== 0) {
+      desiredVelocity.addScaledVector(right, input.x);
+    }
+    
+    // Normalize if moving diagonally
+    if (desiredVelocity.length() > 1) {
+      desiredVelocity.normalize();
+    }
+    
+    // Scale by max speed
+    desiredVelocity.multiplyScalar(this.maxSpeed);
+    
+    // Apply acceleration towards desired velocity
+    this.velocity.x += (desiredVelocity.x - this.velocity.x) * this.acceleration;
+    this.velocity.z += (desiredVelocity.z - this.velocity.z) * this.acceleration;
+    
+    // Apply deceleration
+    this.velocity.x *= this.deceleration;
+    this.velocity.z *= this.deceleration;
+    
+    // Apply horizontal movement
+    this.mesh.position.x += this.velocity.x;
+    this.mesh.position.z += this.velocity.z;
+    
+    // Vertical movement (jumping and gravity)
     this.velocity.y += this.gravity;
     this.mesh.position.y += this.velocity.y;
+    
     // Ground check
     if (this.mesh.position.y <= 0) {
       this.mesh.position.y = 0;
       this.velocity.y = 0;
       this.isGrounded = true;
     }
-    // Attack logic (stab motion)
+    
+    // Attack logic
     if (this.isAttacking) {
       const stabAmount = Math.sin((Math.PI * (this.attackDuration - this.attackTimer)) / this.attackDuration) * 0.3;
       this.mesh.position.z = stabAmount;
@@ -173,17 +230,22 @@ export class Player {
         this.mesh.position.z = 0;
       }
     }
+    
     if (this.attackCooldown > 0) this.attackCooldown--;
-    // Special ability cooldown
     if (this.specialCooldown > 0) this.specialCooldown--;
+    
     this.updateBoomerangs();
-    // Camera orbit logic
+    
+    // Update camera position and rotation
     if (this.scene && this.scene.camera) {
       const cam = this.scene.camera;
-      cam.position.x = this.mesh.position.x + Math.sin(this.orbitAngle) * this.zoom;
-      cam.position.z = this.mesh.position.z + Math.cos(this.orbitAngle) * this.zoom;
-      cam.position.y = this.mesh.position.y + 2;
-      cam.lookAt(this.mesh.position);
+      
+      // Position camera at player's eye level
+      cam.position.copy(this.mesh.position);
+      cam.position.y += this.cameraHeight;
+      
+      // Set camera rotation based on yaw and pitch
+      cam.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
     }
   }
 } 

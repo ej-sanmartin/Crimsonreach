@@ -39,10 +39,8 @@ export class AshmoorScene extends THREE.Scene {
   }
 
   createSkybox() {
-    // Create a large sphere for the sky
-    const skyGeometry = new THREE.SphereGeometry(50, 32, 32);
-    // Invert the geometry so the texture is on the inside
-    skyGeometry.scale(-1, 1, 1);
+    // Create a large sphere for the sky with proper inversion
+    const skyGeometry = new THREE.SphereGeometry(50, 32, 32, 0, Math.PI * 2, 0, Math.PI, true);
     
     // Create aurora shader material
     const auroraMaterial = new THREE.ShaderMaterial({
@@ -100,22 +98,16 @@ export class AshmoorScene extends THREE.Scene {
             noise(auroraPos * 0.5 + time * 0.05)
           );
           
-          // Stars
-          float stars = 0.0;
-          vec2 starPos = vPosition.xy * 100.0;
-          starPos.y += time * 0.05;
-          stars = random(starPos) > 0.995 ? 1.0 : 0.0;
-          
           // Combine everything
           vec3 finalColor = nightColor;
           finalColor += aurora * auroraColor * 0.5;
-          finalColor += stars * vec3(1.0);
           
           gl_FragColor = vec4(finalColor, 1.0);
         }
       `,
       side: THREE.BackSide,
-      depthWrite: false
+      depthWrite: false,
+      depthTest: false
     });
     
     const sky = new THREE.Mesh(skyGeometry, auroraMaterial);

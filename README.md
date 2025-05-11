@@ -5,7 +5,7 @@
    width="250">
 </p>
 
-# Vibe Coding Game Template 🎮
+# Crimsonreach
 
 A modular, optimization-minded template for creating ThreeJS games with a focus on performance and maintainability.
 

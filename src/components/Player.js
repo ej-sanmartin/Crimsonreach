@@ -178,17 +178,32 @@ export class Player {
   throwBoomerang() {
     // Create a boomerang mesh
     const mesh = new THREE.Mesh(
-      new THREE.TorusGeometry(0.3, 0.08, 8, 16),
+      new THREE.TorusGeometry(0.3, 0.08, 8, 16, Math.PI * 2/3),  // Last parameter makes it 1/3 of a circle
       new THREE.MeshBasicMaterial({ color: 0xffcc00 })
     );
     mesh.position.copy(this.mesh.position);
     // Calculate forward direction based on camera yaw
+    const direction = new THREE.Vector3(
+      -Math.sin(this.yaw),  // Forward X
+      0,                    // No vertical component
+      -Math.cos(this.yaw)   // Forward Z
+    );
+    // Set initial rotation to tilt upward and forward
+    const up = new THREE.Vector3(0, 1, 0);
+    const right = new THREE.Vector3().crossVectors(direction, up).normalize();
+    mesh.quaternion.setFromUnitVectors(
+      new THREE.Vector3(0, 0, 1),  // Default forward
+      direction                     // Desired forward
+    );
+    // Tilt upward by 45 degrees
+    mesh.rotateOnAxis(right, Math.PI / 4);
+    
+    // Calculate the pause position (7.5 units away - 30 frames * 0.25 speed)
+    const pausePosition = new THREE.Vector3().copy(mesh.position).addScaledVector(direction, 7.5);
+    
     mesh.userData = {
-      direction: new THREE.Vector3(
-        Math.cos(this.yaw),  // Swapped sin with cos
-        0,                    // No vertical component
-        Math.sin(this.yaw)   // Swapped cos with sin
-      ),
+      direction: direction,
+      pausePosition: pausePosition,
       time: 0
     };
     this.scene.add(mesh);
@@ -199,20 +214,29 @@ export class Player {
     for (let i = this.boomerangs.length - 1; i >= 0; i--) {
       const b = this.boomerangs[i];
       b.userData.time += 1;
-      // Outward for 30 frames, then return
       let t = b.userData.time;
       let dir = b.userData.direction;
+      
       if (t <= 30) {
+        // Move outward
         b.position.addScaledVector(dir, 0.25);
       } else if (t <= 60) {
+        // Pause at furthest point - maintain exact position
+        b.position.copy(b.userData.pausePosition);
+      } else {
         // Return to player
         const toPlayer = new THREE.Vector3().subVectors(this.mesh.position, b.position).normalize();
         b.position.addScaledVector(toPlayer, 0.25);
-      } else {
-        this.scene.remove(b);
-        this.boomerangs.splice(i, 1);
+        
+        // Check if boomerang has reached the player (within 0.5 units)
+        const distanceToPlayer = b.position.distanceTo(this.mesh.position);
+        if (distanceToPlayer < 0.5) {
+          this.scene.remove(b);
+          this.boomerangs.splice(i, 1);
+        }
       }
-      b.rotation.y += 0.3;
+      // Rotate around the forward direction (like a frisbee)
+      b.rotateOnAxis(dir, 0.3);
     }
   }
 

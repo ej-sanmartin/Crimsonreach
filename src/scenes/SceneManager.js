@@ -1,6 +1,3 @@
-import { StartScreen } from './StartScreen';
-import { AshmoorScene } from './AshmoorScene';
-
 export class SceneManager {
   constructor(renderer) {
     this.renderer = renderer;

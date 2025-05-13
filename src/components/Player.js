@@ -29,10 +29,21 @@ export class Player {
     blade.rotation.x = -Math.PI / 2;
     this.dagger.add(blade);
     // Position dagger in front of player
-    this.dagger.position.set(0, -0.4, -0.5); // Centered horizontally (0.3 -> 0)
+    this.dagger.position.set(0, -0.4, -0.5);
     // Set initial rotation to point towards center
-    this.dagger.rotation.set(0.2, 0, 0); // Adjusted yaw to point straight ahead (-0.1 -> 0)
+    this.dagger.rotation.set(0.2, 0, 0);
+    
+    // Add weapon properties to dagger
+    this.dagger.userData.isWeapon = true;
+    this.dagger.userData.weaponType = 'dagger';
+    this.dagger.userData.stopAttack = false;
+    
     scene.add(this.dagger);
+    
+    // Add dagger as a dynamic collider with 'projectile' layer
+    if (scene.collisionSystem) {
+      this.daggerCollider = scene.collisionSystem.addCollider(this.dagger, 'box', false, 'projectile');
+    }
     
     this.initCameraControls();
     
@@ -56,6 +67,9 @@ export class Player {
     this.specialCooldown = 0;
     this.activeSpecial = 'boomerang';
     this.boomerangs = [];
+
+    // Collision handling
+    this.mesh.userData.onCollision = this.handleCollision.bind(this);
     
     // Listen for attack/jump input
     window.addEventListener('keydown', (e) => {
@@ -75,6 +89,83 @@ export class Player {
     if (window && window.MobileControlsInstance) {
       window.MobileControlsInstance.buttons.attack.onclick = () => this.tryAttack();
       window.MobileControlsInstance.buttons.special.onclick = () => this.trySpecial();
+    }
+
+    // Subscribe to collision events
+    if (scene.collisionSystem) {
+      this.unsubscribe = scene.collisionSystem.on('collision', ({ colliderA, colliderB }) => {
+        console.log('Player received collision event:', { 
+          colliderA: colliderA.mesh.id, 
+          colliderB: colliderB.mesh.id,
+          layers: [colliderA.layer, colliderB.layer]
+        });
+        // Check if this player is involved in the collision
+        if (colliderA.mesh === this.mesh || colliderB.mesh === this.mesh) {
+          const otherCollider = colliderA.mesh === this.mesh ? colliderB : colliderA;
+          this.handleCollision(otherCollider);
+        }
+      });
+    }
+  }
+
+  handleCollision(otherCollider) {
+    // Handle collision with static objects
+    if (otherCollider.isStatic) {
+      // Get world space bounds
+      const playerBox = new THREE.Box3().setFromObject(this.mesh);
+      const otherBox = new THREE.Box3().setFromObject(otherCollider.mesh);
+      
+      // Calculate overlap
+      const overlap = new THREE.Vector3();
+      overlap.x = Math.min(playerBox.max.x - otherBox.min.x, otherBox.max.x - playerBox.min.x);
+      overlap.y = Math.min(playerBox.max.y - otherBox.min.y, otherBox.max.y - playerBox.min.y);
+      overlap.z = Math.min(playerBox.max.z - otherBox.min.z, otherBox.max.z - playerBox.min.z);
+      
+      // Find minimum overlap axis
+      let minOverlap = Math.min(overlap.x, overlap.y, overlap.z);
+      
+      // Calculate player's center and other object's center
+      const playerCenter = new THREE.Vector3();
+      const otherCenter = new THREE.Vector3();
+      playerBox.getCenter(playerCenter);
+      otherBox.getCenter(otherCenter);
+      
+      // Calculate direction from player to other object
+      const direction = new THREE.Vector3().subVectors(otherCenter, playerCenter).normalize();
+      
+      // Store previous position for velocity calculation
+      const prevPosition = this.mesh.position.clone();
+      
+      // Add a small buffer to prevent phasing through
+      const buffer = 0.01;
+      
+      // Resolve collision by moving player
+      if (minOverlap === overlap.x) {
+        // Move player out of collision on X axis
+        const moveX = direction.x > 0 ? -(overlap.x + buffer) : (overlap.x + buffer);
+        this.mesh.position.x += moveX;
+        // Zero out velocity in collision direction
+        this.velocity.x = 0;
+      } else if (minOverlap === overlap.y) {
+        // Move player out of collision on Y axis
+        const moveY = direction.y > 0 ? -(overlap.y + buffer) : (overlap.y + buffer);
+        this.mesh.position.y += moveY;
+        // Zero out velocity in collision direction
+        this.velocity.y = 0;
+        if (this.velocity.y < 0) {
+          this.isGrounded = true;
+        }
+      } else {
+        // Move player out of collision on Z axis
+        const moveZ = direction.z > 0 ? -(overlap.z + buffer) : (overlap.z + buffer);
+        this.mesh.position.z += moveZ;
+        // Zero out velocity in collision direction
+        this.velocity.z = 0;
+      }
+      
+      // Calculate position delta and update velocity
+      const positionDelta = new THREE.Vector3().subVectors(this.mesh.position, prevPosition);
+      this.velocity.sub(positionDelta);
     }
   }
 
@@ -164,7 +255,8 @@ export class Player {
     if (!this.isAttacking && this.attackCooldown <= 0) {
       this.isAttacking = true;
       this.attackTimer = this.attackDuration;
-      this.attackCooldown = 20; // frames
+      this.attackCooldown = 20;
+      this.dagger.userData.stopAttack = false;
     }
   }
 
@@ -178,41 +270,47 @@ export class Player {
   throwBoomerang() {
     // Create a boomerang mesh
     const mesh = new THREE.Mesh(
-      new THREE.TorusGeometry(0.3, 0.08, 8, 16, Math.PI * 2/3),  // Last parameter makes it 1/3 of a circle
+      new THREE.TorusGeometry(0.3, 0.08, 8, 16, Math.PI * 2/3),
       new THREE.MeshBasicMaterial({ color: 0xffcc00 })
     );
     mesh.position.copy(this.mesh.position);
-    // Calculate forward direction based on camera yaw
+    mesh.userData.isWeapon = true;
+    mesh.userData.weaponType = 'boomerang';
+    mesh.userData.shouldReturn = false;
     const direction = new THREE.Vector3(
-      -Math.sin(this.yaw),  // Forward X
-      0,                    // No vertical component
-      -Math.cos(this.yaw)   // Forward Z
+      -Math.sin(this.yaw),
+      0,
+      -Math.cos(this.yaw)
     );
-    // Set initial rotation to tilt upward and forward
     const up = new THREE.Vector3(0, 1, 0);
     const right = new THREE.Vector3().crossVectors(direction, up).normalize();
     mesh.quaternion.setFromUnitVectors(
-      new THREE.Vector3(0, 0, 1),  // Default forward
-      direction                     // Desired forward
+      new THREE.Vector3(0, 0, 1),
+      direction
     );
-    // Tilt upward by 45 degrees
     mesh.rotateOnAxis(right, Math.PI / 4);
-    
-    // Calculate the pause position (7.5 units away - 30 frames * 0.25 speed)
     const pausePosition = new THREE.Vector3().copy(mesh.position).addScaledVector(direction, 7.5);
-    
-    mesh.userData = {
-      direction: direction,
-      pausePosition: pausePosition,
-      time: 0
-    };
+    mesh.userData.direction = direction;
+    mesh.userData.pausePosition = pausePosition;
+    mesh.userData.time = 0;
     this.scene.add(mesh);
     this.boomerangs.push(mesh);
+    // Add collider for the boomerang with 'projectile' layer
+    if (this.scene.collisionSystem) {
+      mesh.userData.collider = this.scene.collisionSystem.addCollider(mesh, 'sphere', false, 'projectile');
+    }
   }
 
   updateBoomerangs() {
     for (let i = this.boomerangs.length - 1; i >= 0; i--) {
       const b = this.boomerangs[i];
+      
+      // Check if boomerang should return due to collision
+      if (b.userData.shouldReturn) {
+        b.userData.time = 60; // Skip to return phase
+        b.userData.shouldReturn = false;
+      }
+      
       b.userData.time += 1;
       let t = b.userData.time;
       let dir = b.userData.direction;
@@ -221,21 +319,27 @@ export class Player {
         // Move outward
         b.position.addScaledVector(dir, 0.25);
       } else if (t <= 60) {
-        // Pause at furthest point - maintain exact position
+        // Pause at furthest point
         b.position.copy(b.userData.pausePosition);
       } else {
         // Return to player
         const toPlayer = new THREE.Vector3().subVectors(this.mesh.position, b.position).normalize();
         b.position.addScaledVector(toPlayer, 0.25);
         
-        // Check if boomerang has reached the player (within 0.5 units)
+        // Check if boomerang has reached the player
         const distanceToPlayer = b.position.distanceTo(this.mesh.position);
         if (distanceToPlayer < 0.5) {
           this.scene.remove(b);
           this.boomerangs.splice(i, 1);
+          
+          // Remove collider when boomerang is destroyed
+          if (this.scene.collisionSystem && b.userData.collider) {
+            this.scene.collisionSystem.removeCollider(b.userData.collider);
+          }
         }
       }
-      // Rotate around the forward direction (like a frisbee)
+      
+      // Rotate around the forward direction
       b.rotateOnAxis(dir, 0.3);
     }
   }
@@ -244,18 +348,16 @@ export class Player {
     const input = controls.getInput();
     
     // Calculate forward and right vectors based on camera direction
-    // Forward is along negative Z axis in Three.js
     const forward = new THREE.Vector3(
-      -Math.sin(this.yaw),  // Forward X
+      -Math.sin(this.yaw),
       0,
-      -Math.cos(this.yaw)   // Forward Z
+      -Math.cos(this.yaw)
     );
     
-    // Right is perpendicular to forward
     const right = new THREE.Vector3(
-      Math.cos(this.yaw),   // Right X
+      Math.cos(this.yaw),
       0,
-      -Math.sin(this.yaw)   // Right Z
+      -Math.sin(this.yaw)
     );
     
     // Calculate desired velocity based on input and camera direction
@@ -286,12 +388,34 @@ export class Player {
     // Apply deceleration
     this.velocity.x *= this.deceleration;
     this.velocity.z *= this.deceleration;
+
+    // Store current position for collision resolution
+    const currentPosition = this.mesh.position.clone();
     
-    // Apply horizontal movement
+    // Try horizontal movement first
     this.mesh.position.x += this.velocity.x;
     this.mesh.position.z += this.velocity.z;
     
-    // Vertical movement (jumping and gravity)
+    // Check for collisions after horizontal movement
+    if (this.scene.collisionSystem) {
+      this.scene.collisionSystem.broadPhase();
+      const collisions = this.scene.collisionSystem.narrowPhase();
+      
+      // If there are collisions with environment objects, resolve them
+      const hasCollision = collisions.some(([a, b]) => {
+        const isPlayer = a.mesh === this.mesh || b.mesh === this.mesh;
+        const isEnvironment = a.layer === 'environment' || b.layer === 'environment';
+        return isPlayer && isEnvironment;
+      });
+      
+      if (hasCollision) {
+        // Revert position and zero out velocity in collision direction
+        this.mesh.position.copy(currentPosition);
+        this.velocity.set(0, this.velocity.y, 0);
+      }
+    }
+    
+    // Apply vertical movement (jumping and gravity)
     this.velocity.y += this.gravity;
     this.mesh.position.y += this.velocity.y;
     
@@ -324,6 +448,13 @@ export class Player {
       
       // Attack animation
       if (this.isAttacking) {
+        // Check if attack should be stopped due to collision
+        if (this.dagger.userData.stopAttack) {
+          this.isAttacking = false;
+          this.dagger.userData.stopAttack = false;
+          return;
+        }
+
         // Calculate attack progress (0 to 1)
         const progress = this.attackTimer / this.attackDuration;
         // Create a smooth arc motion for the attack
@@ -372,5 +503,12 @@ export class Player {
     if (this.specialCooldown > 0) this.specialCooldown--;
     
     this.updateBoomerangs();
+  }
+
+  // Add cleanup method
+  destroy() {
+    if (this.unsubscribe) {
+      this.unsubscribe();
+    }
   }
 } 

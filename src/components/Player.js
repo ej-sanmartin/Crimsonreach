@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { controls } from '../utils/controls';
 import { slerp } from '../utils/math';
+import { VECTORS } from '../utils/vectors';
 
 export class Player {
   constructor(scene) {
@@ -277,15 +278,14 @@ export class Player {
     mesh.userData.isWeapon = true;
     mesh.userData.weaponType = 'boomerang';
     mesh.userData.shouldReturn = false;
-    const direction = new THREE.Vector3(
-      -Math.sin(this.yaw),
-      0,
-      -Math.cos(this.yaw)
-    );
-    const up = new THREE.Vector3(0, 1, 0);
-    const right = new THREE.Vector3().crossVectors(direction, up).normalize();
+    
+    // Get forward direction from camera quaternion
+    const direction = VECTORS.CAMERA_FORWARD();
+    direction.applyQuaternion(this.scene.camera.quaternion);
+    
+    const right = new THREE.Vector3().crossVectors(direction, VECTORS.WORLD_UP()).normalize();
     mesh.quaternion.setFromUnitVectors(
-      new THREE.Vector3(0, 0, 1),
+      VECTORS.WORLD_FORWARD(),
       direction
     );
     mesh.rotateOnAxis(right, Math.PI / 4);

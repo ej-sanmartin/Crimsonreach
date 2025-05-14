@@ -44,6 +44,7 @@ export class Player {
     this.inputState = {
       isCrouching: false,
       isChangingWeapon: true, // true = changing weapon, false = changing special
+      isShiftHeld: false, // Track shift key state
     };
     
     // Crouching animation properties
@@ -134,6 +135,11 @@ export class Player {
       if (e.code === 'KeyC') this.rotateEquipped(1);
       if (e.code === 'KeyX') this.toggleEquipmentMode();
       
+      // Handle shift key
+      if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+        this.inputState.isShiftHeld = true;
+      }
+      
       // Handle crouching with multiple key code support
       if (e.code === 'Control' || e.code === 'ControlLeft' || e.code === 'ControlRight') {
         this.inputState.isCrouching = true;
@@ -144,6 +150,11 @@ export class Player {
     window.addEventListener('keyup', (e) => {
       // Remove from pressed keys set
       this.keyPressed.delete(e.code);
+      
+      // Handle shift key release
+      if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+        this.inputState.isShiftHeld = false;
+      }
       
       if (e.code === 'Control' || e.code === 'ControlLeft' || e.code === 'ControlRight') {
         this.inputState.isCrouching = false;
@@ -166,11 +177,6 @@ export class Player {
     // Subscribe to collision events
     if (scene.collisionSystem) {
       this.unsubscribe = scene.collisionSystem.on('collision', ({ colliderA, colliderB }) => {
-        console.log('Player received collision event:', { 
-          colliderA: colliderA.mesh.id, 
-          colliderB: colliderB.mesh.id,
-          layers: [colliderA.layer, colliderB.layer]
-        });
         // Check if this player is involved in the collision
         if (colliderA.mesh === this.mesh || colliderB.mesh === this.mesh) {
           const otherCollider = colliderA.mesh === this.mesh ? colliderB : colliderA;
@@ -255,7 +261,6 @@ export class Player {
     // TODO: Implement equipment rotation
     const mode = this.inputState.isChangingWeapon ? 'weapon' : 'special';
     const dir = direction > 0 ? 'forward' : 'backward';
-    console.log(`Rotate ${mode} ${dir}`);
   }
   
   toggleEquipmentMode() {
@@ -401,10 +406,8 @@ export class Player {
   }
 
   tryJump() {
-    // Check for super jump combo first
-    const superJump = this.hasAbility('superJump') && 
-      controls.isComboPressed(this.abilities.superJump.combo, this.abilities.superJump.comboWindow);
-    if (superJump) {
+    // Check for super jump (Left Shift + Space)
+    if (this.hasAbility('superJump') && this.inputState.isShiftHeld && this.isGrounded) {
       return this.useAbility('superJump');
     }
     

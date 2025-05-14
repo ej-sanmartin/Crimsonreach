@@ -61,8 +61,9 @@ export class StartScreen extends THREE.Scene {
       ['WASD', 'Move'],
       ['Mouse', 'Look around'],
       ['Space', 'Jump'],
-      ['Q / Left Click', 'Attack'],
-      ['E', 'Special ability (Boomerang)'],
+      ['Left Click', 'Attack'],
+      ['Q', 'Special ability (Boomerang)'],
+      ['Control', 'Crouch'],
       ['Escape', 'Release mouse']
     ];
 

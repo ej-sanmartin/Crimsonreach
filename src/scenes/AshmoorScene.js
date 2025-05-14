@@ -96,8 +96,8 @@ export class AshmoorScene extends THREE.Scene {
     const wallGroup = new THREE.Group();
     wallGroup.position.set(x, y, z);
     
-    // Create a wall mesh
-    const geometry = new THREE.BoxGeometry(4, 2, 0.2); // Wide but thin wall
+    // Create a wall mesh - shorter and thicker
+    const geometry = new THREE.BoxGeometry(4, 1, 1); // Wide, shorter (1 instead of 2), thicker (1 instead of 0.2)
     const material = new THREE.MeshStandardMaterial({
       color: 0x888888,
       roughness: 0.8,
@@ -108,7 +108,7 @@ export class AshmoorScene extends THREE.Scene {
     
     // Create a slightly larger collision box
     const collisionBox = new THREE.Mesh(
-      new THREE.BoxGeometry(4.1, 2.1, 0.3), // Slightly larger than visual mesh
+      new THREE.BoxGeometry(4.1, 1.1, 1.1), // Slightly larger than visual mesh
       new THREE.MeshBasicMaterial({ visible: false })
     );
     wallGroup.add(collisionBox);

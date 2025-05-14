@@ -401,18 +401,59 @@ export class Player {
       this.scene.collisionSystem.broadPhase();
       const collisions = this.scene.collisionSystem.narrowPhase();
       
-      // If there are collisions with environment objects, resolve them
-      const hasCollision = collisions.some(([a, b]) => {
+      // Handle each collision with wall sliding
+      let hasCollision = false;
+      collisions.forEach(([a, b]) => {
         const isPlayer = a.mesh === this.mesh || b.mesh === this.mesh;
         const isEnvironment = a.layer === 'environment' || b.layer === 'environment';
-        return isPlayer && isEnvironment;
+        
+        if (isPlayer && isEnvironment) {
+          hasCollision = true;
+          const otherCollider = a.mesh === this.mesh ? b : a;
+          
+          // Calculate collision normal from centers
+          const playerBox = new THREE.Box3().setFromObject(this.mesh);
+          const otherBox = new THREE.Box3().setFromObject(otherCollider.mesh);
+          
+          const playerCenter = new THREE.Vector3();
+          const otherCenter = new THREE.Vector3();
+          playerBox.getCenter(playerCenter);
+          otherBox.getCenter(otherCenter);
+          
+          // Normal points from wall to player
+          const normal = new THREE.Vector3().subVectors(playerCenter, otherCenter).normalize();
+          
+          // Only consider horizontal sliding (ignore Y component)
+          normal.y = 0;
+          normal.normalize();
+          
+          // Calculate overlap for position correction
+          const overlap = new THREE.Vector3();
+          overlap.x = Math.min(playerBox.max.x - otherBox.min.x, otherBox.max.x - playerBox.min.x);
+          overlap.z = Math.min(playerBox.max.z - otherBox.min.z, otherBox.max.z - playerBox.min.z);
+          
+          // Resolve overlap by moving player out
+          let minOverlap = Math.min(overlap.x, overlap.z);
+          const buffer = 0.01;
+          
+          if (minOverlap === overlap.x) {
+            this.mesh.position.x = currentPosition.x + normal.x * (overlap.x + buffer);
+          } else {
+            this.mesh.position.z = currentPosition.z + normal.z * (overlap.z + buffer);
+          }
+          
+          // Project velocity onto surface for sliding
+          const horizontalVelocity = new THREE.Vector3(this.velocity.x, 0, this.velocity.z);
+          const velocityDotNormal = horizontalVelocity.dot(normal);
+          
+          // Remove the velocity component going into the wall
+          if (velocityDotNormal < 0) {
+            horizontalVelocity.addScaledVector(normal, -velocityDotNormal);
+            this.velocity.x = horizontalVelocity.x;
+            this.velocity.z = horizontalVelocity.z;
+          }
+        }
       });
-      
-      if (hasCollision) {
-        // Revert position and zero out velocity in collision direction
-        this.mesh.position.copy(currentPosition);
-        this.velocity.set(0, this.velocity.y, 0);
-      }
     }
     
     // Apply vertical movement (jumping and gravity)

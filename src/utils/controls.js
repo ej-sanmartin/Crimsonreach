@@ -5,11 +5,15 @@ export const controls = {
   input: { x: 0, y: 0 },
   isTouching: false,
   keys: {},
+  comboInputs: [],
+  comboWindow: 10, // frames for combo detection
+  lastKeyTime: {},
   
   init() {
     // Keyboard controls
     window.addEventListener('keydown', (e) => {
       this.keys[e.code] = true;
+      this.lastKeyTime[e.code] = Date.now();
       this.updateMovement();
     });
     
@@ -46,6 +50,21 @@ export const controls = {
       this.input.x /= length;
       this.input.y /= length;
     }
+  },
+  
+  // Add method to check if key is currently pressed
+  isKeyPressed(keyCode) {
+    return this.keys[keyCode] || false;
+  },
+  
+  // Add method to check key combinations
+  isComboPressed(keys, timeWindow = this.comboWindow) {
+    const now = Date.now();
+    return keys.every(key => {
+      const keyPressed = this.keys[key];
+      const keyTime = this.lastKeyTime[key] || 0;
+      return keyPressed && (now - keyTime) <= timeWindow;
+    });
   },
   
   handleTouchStart(event) {

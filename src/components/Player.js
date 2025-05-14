@@ -12,8 +12,51 @@ export class Player {
     scene.add(this.mesh);
     this.scene = scene;
     
+    // Abilities system - all unlocked for debugging
+    this.abilities = {
+      doubleJump: { 
+        unlocked: true,
+        uses: 0,
+        maxUses: 1,
+        resets: 'onLanding'
+      },
+      slideKick: { 
+        unlocked: true,
+        cooldown: 0,
+        duration: 0,
+        speed: 0.4,
+        isActive: false,
+        input: ['ControlLeft', 'KeyW']
+      },
+      breatheUnderwater: { 
+        unlocked: true,
+        passive: true
+      },
+      superJump: { 
+        unlocked: true,
+        combo: ['KeyW', 'Space'],
+        comboWindow: 150, // ms
+        jumpMultiplier: 3
+      }
+    };
+    
+    // Input state tracking
+    this.inputState = {
+      isCrouching: false,
+      isChangingWeapon: true, // true = changing weapon, false = changing special
+    };
+    
+    // Crouching animation properties
+    this.crouchAnimation = 0; // 0 = standing, 1 = crouched
+    this.crouchSpeed = 0.1; // How fast to transition
+    this.minCrouchForSlide = 0.8; // Must be 80% crouched to slide kick
+    
+    // Track key press events vs held keys
+    this.keyPressed = new Set(); // Track fresh key presses
+    
     // First person camera settings
     this.cameraHeight = 1.7; // Average eye height
+    this.crouchHeight = 1.2; // Crouched eye height
     this.pitch = 0; // Vertical look angle
     this.yaw = 0; // Horizontal look angle
     this.mouseSensitivity = 0.002;
@@ -74,9 +117,37 @@ export class Player {
     
     // Listen for attack/jump input
     window.addEventListener('keydown', (e) => {
+      // Only process if this is a fresh key press (not a repeat)
+      if (!this.keyPressed.has(e.code)) {
+        this.keyPressed.add(e.code);
+        
+        // Check for slide kick when W is freshly pressed while sufficiently crouched
+        if (e.code === 'KeyW' && this.inputState.isCrouching && this.crouchAnimation >= this.minCrouchForSlide) {
+          this.useAbility('slideKick');
+        }
+      }
+      
       if (e.code === 'Space') this.tryJump();
-      if (e.code === 'KeyQ') this.tryAttack();
-      if (e.code === 'KeyE') this.trySpecial();
+      if (e.code === 'KeyQ') this.trySpecial();
+      if (e.code === 'KeyE') this.tryInteract();
+      if (e.code === 'KeyZ') this.rotateEquipped(-1);
+      if (e.code === 'KeyC') this.rotateEquipped(1);
+      if (e.code === 'KeyX') this.toggleEquipmentMode();
+      
+      // Handle crouching with multiple key code support
+      if (e.code === 'Control' || e.code === 'ControlLeft' || e.code === 'ControlRight') {
+        this.inputState.isCrouching = true;
+      }
+    });
+    
+    // Add keyup listener for crouch and key tracking
+    window.addEventListener('keyup', (e) => {
+      // Remove from pressed keys set
+      this.keyPressed.delete(e.code);
+      
+      if (e.code === 'Control' || e.code === 'ControlLeft' || e.code === 'ControlRight') {
+        this.inputState.isCrouching = false;
+      }
     });
     
     // Add mouse click for attack
@@ -107,6 +178,90 @@ export class Player {
         }
       });
     }
+  }
+
+  hasAbility(name) {
+    return this.abilities[name] && this.abilities[name].unlocked;
+  }
+  
+  useAbility(name, ...args) {
+    const ability = this.abilities[name];
+    if (!ability || !ability.unlocked) return false;
+    
+    switch(name) {
+    case 'doubleJump':
+      return this.performDoubleJump();
+    case 'slideKick':
+      return this.performSlideKick();
+    case 'superJump':
+      return this.performSuperJump();
+    default:
+      return false;
+    }
+  }
+  
+  updateAbilities() {
+    // Update cooldowns
+    if (this.abilities.slideKick.cooldown > 0) {
+      this.abilities.slideKick.cooldown--;
+    }
+    
+    // Update active abilities
+    if (this.abilities.slideKick.isActive) {
+      this.abilities.slideKick.duration--;
+      if (this.abilities.slideKick.duration <= 0) {
+        this.abilities.slideKick.isActive = false;
+      }
+    }
+    
+    // Reset double jump on landing
+    if (this.isGrounded && this.abilities.doubleJump.uses > 0) {
+      this.abilities.doubleJump.uses = 0;
+    }
+  }
+
+  performDoubleJump() {
+    this.velocity.y = this.jumpStrength * 0.8; // Slightly weaker than regular jump
+    this.abilities.doubleJump.uses++;
+    return true;
+  }
+  
+  performSlideKick() {
+    if (this.abilities.slideKick.cooldown > 0) return false;
+    
+    this.abilities.slideKick.isActive = true;
+    this.abilities.slideKick.duration = 20; // frames
+    this.abilities.slideKick.cooldown = 60; // frames
+    
+    // Add forward momentum
+    const forward = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
+    this.velocity.add(forward.multiplyScalar(this.abilities.slideKick.speed));
+    
+    return true;
+  }
+  
+  performSuperJump() {
+    this.velocity.y = this.jumpStrength * this.abilities.superJump.jumpMultiplier;
+    this.isGrounded = false;
+    return true;
+  }
+
+  tryInteract() {
+    // TODO: Implement interaction system
+    console.log('Interact pressed');
+  }
+  
+  rotateEquipped(direction) {
+    // TODO: Implement equipment rotation
+    const mode = this.inputState.isChangingWeapon ? 'weapon' : 'special';
+    const dir = direction > 0 ? 'forward' : 'backward';
+    console.log(`Rotate ${mode} ${dir}`);
+  }
+  
+  toggleEquipmentMode() {
+    this.inputState.isChangingWeapon = !this.inputState.isChangingWeapon;
+    const mode = this.inputState.isChangingWeapon ? 'weapon' : 'special attack';
+    console.log(`Now changing: ${mode}`);
   }
 
   handleCollision(otherCollider) {
@@ -246,10 +401,26 @@ export class Player {
   }
 
   tryJump() {
+    // Check for super jump combo first
+    const superJump = this.hasAbility('superJump') && 
+      controls.isComboPressed(this.abilities.superJump.combo, this.abilities.superJump.comboWindow);
+    if (superJump) {
+      return this.useAbility('superJump');
+    }
+    
+    // Regular jump
     if (this.isGrounded) {
       this.velocity.y = this.jumpStrength;
       this.isGrounded = false;
+      return true;
     }
+    
+    // Double jump
+    if (this.hasAbility('doubleJump') && this.abilities.doubleJump.uses < this.abilities.doubleJump.maxUses) {
+      return this.useAbility('doubleJump');
+    }
+    
+    return false;
   }
 
   tryAttack() {
@@ -347,6 +518,14 @@ export class Player {
   update() {
     const input = controls.getInput();
     
+    // Update crouching animation
+    const targetCrouch = this.inputState.isCrouching ? 1 : 0;
+    this.crouchAnimation += (targetCrouch - this.crouchAnimation) * this.crouchSpeed;
+    
+    // Apply smooth scaling to player mesh
+    const scaleY = 1 - (this.crouchAnimation * 0.3); // 1.0 to 0.7
+    this.mesh.scale.y = scaleY;
+    
     // Calculate forward and right vectors based on camera direction
     const forward = new THREE.Vector3(
       -Math.sin(this.yaw),
@@ -360,34 +539,47 @@ export class Player {
       -Math.sin(this.yaw)
     );
     
-    // Calculate desired velocity based on input and camera direction
-    const desiredVelocity = new THREE.Vector3();
-    
-    // Forward/backward movement
-    if (input.y !== 0) {
-      desiredVelocity.addScaledVector(forward, input.y);
+    // Handle movement and crouching
+    if (!this.inputState.isCrouching || this.abilities.slideKick.isActive) {
+      // Normal movement when not crouching or during slide kick
+      const desiredVelocity = new THREE.Vector3();
+      
+      // Forward/backward movement
+      if (input.y !== 0) {
+        desiredVelocity.addScaledVector(forward, input.y);
+      }
+      
+      // Left/right movement
+      if (input.x !== 0) {
+        desiredVelocity.addScaledVector(right, input.x);
+      }
+      
+      // Normalize if moving diagonally
+      if (desiredVelocity.length() > 1) {
+        desiredVelocity.normalize();
+      }
+      
+      // Scale by max speed (increase speed during slide kick)
+      const speedMultiplier = this.abilities.slideKick.isActive ? 1.5 : 1;
+      desiredVelocity.multiplyScalar(this.maxSpeed * speedMultiplier);
+      
+      // Apply acceleration towards desired velocity
+      this.velocity.x += (desiredVelocity.x - this.velocity.x) * this.acceleration;
+      this.velocity.z += (desiredVelocity.z - this.velocity.z) * this.acceleration;
+      
+      // Apply deceleration
+      this.velocity.x *= this.deceleration;
+      this.velocity.z *= this.deceleration;
+    } else {
+      // When crouching (not slide kicking), apply strong deceleration to stop quickly
+      const crouchDeceleration = 0.85; // Stronger deceleration when crouching
+      this.velocity.x *= crouchDeceleration;
+      this.velocity.z *= crouchDeceleration;
+      
+      // Stop very small velocities to prevent micro-sliding
+      if (Math.abs(this.velocity.x) < 0.01) this.velocity.x = 0;
+      if (Math.abs(this.velocity.z) < 0.01) this.velocity.z = 0;
     }
-    
-    // Left/right movement
-    if (input.x !== 0) {
-      desiredVelocity.addScaledVector(right, input.x);
-    }
-    
-    // Normalize if moving diagonally
-    if (desiredVelocity.length() > 1) {
-      desiredVelocity.normalize();
-    }
-    
-    // Scale by max speed
-    desiredVelocity.multiplyScalar(this.maxSpeed);
-    
-    // Apply acceleration towards desired velocity
-    this.velocity.x += (desiredVelocity.x - this.velocity.x) * this.acceleration;
-    this.velocity.z += (desiredVelocity.z - this.velocity.z) * this.acceleration;
-    
-    // Apply deceleration
-    this.velocity.x *= this.deceleration;
-    this.velocity.z *= this.deceleration;
 
     // Store current position for collision resolution
     const currentPosition = this.mesh.position.clone();
@@ -471,9 +663,10 @@ export class Player {
     if (this.scene && this.scene.camera) {
       const cam = this.scene.camera;
       
-      // Position camera at player's eye level
+      // Position camera at player's eye level (smoothly interpolate height)
       cam.position.copy(this.mesh.position);
-      cam.position.y += this.cameraHeight;
+      const currentHeight = this.cameraHeight - (this.crouchAnimation * (this.cameraHeight - this.crouchHeight));
+      cam.position.y += currentHeight;
       
       // Set camera rotation based on yaw and pitch
       cam.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
@@ -543,6 +736,7 @@ export class Player {
     if (this.attackCooldown > 0) this.attackCooldown--;
     if (this.specialCooldown > 0) this.specialCooldown--;
     
+    this.updateAbilities();
     this.updateBoomerangs();
   }
 

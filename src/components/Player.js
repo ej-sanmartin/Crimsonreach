@@ -492,7 +492,7 @@ export class Player {
           switch (this.activeSpecial) {
             case 'boomerang':
               this.throwBoomerang();
-              this.specialCooldown = 60; // frames
+              this.specialCooldown = 45; // frames (reduced from 60)
               break;
             case 'fireball':
               console.log('Casting fireball!'); // Placeholder

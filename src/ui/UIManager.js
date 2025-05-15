@@ -27,6 +27,10 @@ export class UIManager {
     if (this.player) {
       this._updatePlayerStats();
     }
+    
+    // Add update throttling
+    this.lastUpdateTime = 0;
+    this.updateInterval = 50; // Update UI every 50ms (20fps) instead of every frame
   }
   
   /**
@@ -50,6 +54,13 @@ export class UIManager {
    * Update all UI elements
    */
   update() {
+    // Throttle updates to improve performance
+    const now = performance.now();
+    if (now - this.lastUpdateTime < this.updateInterval) {
+      return;
+    }
+    this.lastUpdateTime = now;
+    
     // Update player stats if player is available
     if (this.player) {
       this._updatePlayerStats();

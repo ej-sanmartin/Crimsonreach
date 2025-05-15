@@ -490,30 +490,27 @@ export class Player {
         if (this.consumeMagic(magicCost)) {
           // Execute the special ability based on active special
           switch (this.activeSpecial) {
-            case 'boomerang':
-              this.throwBoomerang();
-              this.specialCooldown = 45; // frames (reduced from 60)
-              break;
-            case 'fireball':
-              console.log('Casting fireball!'); // Placeholder
-              this.specialCooldown = 90; // frames
-              break;
-            case 'iceSpike':
-              console.log('Casting ice spike!'); // Placeholder
-              this.specialCooldown = 75; // frames
-              break;
-            case 'healingAura':
-              console.log('Casting healing aura!'); // Placeholder
-              this.modifyHealth(20); // Heal 20 health points
-              this.specialCooldown = 120; // frames
-              break;
+          case 'boomerang':
+            this.throwBoomerang();
+            this.specialCooldown = 45; // frames (reduced from 60)
+            break;
+          case 'fireball':
+            console.log('Casting fireball!'); // Placeholder
+            this.specialCooldown = 90; // frames
+            break;
+          case 'iceSpike':
+            console.log('Casting ice spike!'); // Placeholder
+            this.specialCooldown = 75; // frames
+            break;
+          case 'healingAura':
+            console.log('Casting healing aura!'); // Placeholder
+            this.modifyHealth(20); // Heal 20 health points
+            this.specialCooldown = 120; // frames
+            break;
           }
         }
       } else {
-        // Not enough magic - flash the magic bar
-        if (this.uiManager) {
-          this.uiManager.flashMagicBar();
-        }
+        // Not enough magic
         console.log('Not enough magic for ' + this.activeSpecial);
       }
     }

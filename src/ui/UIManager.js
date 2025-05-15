@@ -100,15 +100,6 @@ export class UIManager {
   }
   
   /**
-   * Flash the magic bar to indicate not enough magic
-   */
-  flashMagicBar() {
-    if (this.elements.statusBars) {
-      this.elements.statusBars.flashMagicBar();
-    }
-  }
-  
-  /**
    * Get the status bars element
    * @returns {StatusBars} The status bars UI element
    */

@@ -15,13 +15,17 @@ export class Player {
     // Player stats
     this.stats = {
       health: {
-        max: 100,
-        current: 100
+        max: 250,
+        current: 250
       },
       magic: {
         max: 100,
         current: 100
-      }
+      },
+      attack: 10,
+      defense: 10,
+      intelligence: 10,
+      luck: 10
     };
     
     // Abilities system - all unlocked for debugging
@@ -124,6 +128,14 @@ export class Player {
     this.specialCooldown = 0;
     this.activeSpecial = 'boomerang';
     this.boomerangs = [];
+    
+    // Special ability costs
+    this.specialCosts = {
+      boomerang: 10,
+      fireball: 20,
+      iceSpike: 15,
+      healingAura: 25
+    };
 
     // Collision handling
     this.mesh.userData.onCollision = this.handleCollision.bind(this);
@@ -270,15 +282,20 @@ export class Player {
   }
   
   rotateEquipped(direction) {
-    // TODO: Implement equipment rotation
-    const mode = this.inputState.isChangingWeapon ? 'weapon' : 'special';
-    const dir = direction > 0 ? 'forward' : 'backward';
+    // If changing special abilities
+    if (!this.inputState.isChangingWeapon) {
+      this.cycleSpecials(direction);
+    } else {
+      // TODO: Implement weapon rotation
+      const dir = direction > 0 ? 'forward' : 'backward';
+      console.log('Rotating weapon: ' + dir);
+    }
   }
   
   toggleEquipmentMode() {
     this.inputState.isChangingWeapon = !this.inputState.isChangingWeapon;
     const mode = this.inputState.isChangingWeapon ? 'weapon' : 'special attack';
-    console.log(`Now changing: ${mode}`);
+    console.log('Now changing: ' + mode);
   }
 
   handleCollision(otherCollider) {
@@ -447,10 +464,55 @@ export class Player {
     }
   }
 
+  /**
+   * Set reference to UI manager
+   * @param {UIManager} uiManager - The UI manager instance
+   */
+  setUIManager(uiManager) {
+    this.uiManager = uiManager;
+    
+    // Initialize active special display
+    if (this.uiManager && this.activeSpecial) {
+      this.uiManager.updateActiveSpecial(this.activeSpecial, this.specialCosts[this.activeSpecial]);
+    }
+  }
+
   trySpecial() {
-    if (this.specialCooldown <= 0 && this.activeSpecial === 'boomerang') {
-      this.throwBoomerang();
-      this.specialCooldown = 60; // frames
+    if (this.specialCooldown <= 0) {
+      const magicCost = this.specialCosts[this.activeSpecial] || 0;
+      
+      // Check if player has enough magic
+      if (this.hasMagic(magicCost)) {
+        // Consume magic and use the special ability
+        if (this.consumeMagic(magicCost)) {
+          // Execute the special ability based on active special
+          switch (this.activeSpecial) {
+            case 'boomerang':
+              this.throwBoomerang();
+              this.specialCooldown = 60; // frames
+              break;
+            case 'fireball':
+              console.log('Casting fireball!'); // Placeholder
+              this.specialCooldown = 90; // frames
+              break;
+            case 'iceSpike':
+              console.log('Casting ice spike!'); // Placeholder
+              this.specialCooldown = 75; // frames
+              break;
+            case 'healingAura':
+              console.log('Casting healing aura!'); // Placeholder
+              this.modifyHealth(20); // Heal 20 health points
+              this.specialCooldown = 120; // frames
+              break;
+          }
+        }
+      } else {
+        // Not enough magic - flash the magic bar
+        if (this.uiManager) {
+          this.uiManager.flashMagicBar();
+        }
+        console.log('Not enough magic for ' + this.activeSpecial);
+      }
     }
   }
 
@@ -848,5 +910,36 @@ export class Player {
     if (!this.hasMagic(cost)) return false;
     this.modifyMagic(-cost);
     return true;
+  }
+
+  /**
+   * Change the active special ability
+   * @param {string} specialName - The name of the special to activate
+   */
+  setActiveSpecial(specialName) {
+    if (Object.prototype.hasOwnProperty.call(this.specialCosts, specialName)) {
+      this.activeSpecial = specialName;
+      console.log('Active special: ' + this.activeSpecial + ' (Cost: ' + this.specialCosts[this.activeSpecial] + ' magic)');
+      
+      // Update UI if available
+      if (this.uiManager) {
+        this.uiManager.updateActiveSpecial(this.activeSpecial, this.specialCosts[this.activeSpecial]);
+      }
+      
+      return true;
+    }
+    return false;
+  }
+  
+  /**
+   * Cycle through available special abilities
+   * @param {number} direction - Direction to cycle (1 = forward, -1 = backward)
+   */
+  cycleSpecials(direction) {
+    const specials = Object.keys(this.specialCosts);
+    const currentIndex = specials.indexOf(this.activeSpecial);
+    let newIndex = (currentIndex + direction) % specials.length;
+    if (newIndex < 0) newIndex = specials.length - 1;
+    this.setActiveSpecial(specials[newIndex]);
   }
 } 

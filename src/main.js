@@ -40,6 +40,11 @@ function startGame() {
   }
   uiManager = new UIManager(ashmoor);
   
+  // Give the player access to the UI manager
+  if (ashmoor.player) {
+    ashmoor.player.setUIManager(uiManager);
+  }
+  
   // Add collision listeners
   window.addEventListener('collision', (event) => {
     const { colliderA, colliderB } = event.detail;

@@ -41,6 +41,9 @@ export class UIManager {
     
     statusBars.setHealth(this.player.getHealth());
     statusBars.setMagic(this.player.getMagic());
+    
+    // Make sure to call update for lerping and other animations
+    statusBars.update();
   }
   
   /**
@@ -72,6 +75,26 @@ export class UIManager {
     });
     
     this.elements = {};
+  }
+  
+  /**
+   * Update the active special ability display
+   * @param {string} specialName - The name of the active special
+   * @param {number} cost - The magic cost of the special
+   */
+  updateActiveSpecial(specialName, cost) {
+    if (this.elements.statusBars) {
+      this.elements.statusBars.updateActiveSpecial(specialName, cost);
+    }
+  }
+  
+  /**
+   * Flash the magic bar to indicate not enough magic
+   */
+  flashMagicBar() {
+    if (this.elements.statusBars) {
+      this.elements.statusBars.flashMagicBar();
+    }
   }
   
   /**

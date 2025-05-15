@@ -24,6 +24,10 @@ export class StatusBars extends UIElement {
       magicCurrent: options.magicCurrent || 100
     };
     
+    // For lerping health display
+    this.displayedHealth = this.options.healthCurrent;
+    this.lerpFactor = 0.1; // Adjust for faster/slower transitions
+    
     // Create SVG filter for pixelation effect
     this._createPixelationFilter();
     
@@ -44,7 +48,7 @@ export class StatusBars extends UIElement {
     // Create gothic spire with number
     this.spire = document.createElement('div');
     this.spire.className = 'gothic-spire';
-    this.spire.innerHTML = '<span class=\'gothic-spire-number\'>100</span>';
+    this.spire.innerHTML = `<span class='gothic-spire-number'>${Math.round(this.options.healthCurrent)}</span>`;
     this.spire.style.position = 'relative';
     this.spire.style.left = '0';
     this.spire.style.top = '0';
@@ -343,11 +347,79 @@ export class StatusBars extends UIElement {
   }
   
   /**
+   * Update UI elements with lerping for smooth transitions
+   */
+  update() {
+    // Lerp the displayed health towards the actual health
+    this.displayedHealth += (this.options.healthCurrent - this.displayedHealth) * this.lerpFactor;
+    
+    // Update the spire number with the lerped health value (rounded to integer)
+    const displayValue = Math.round(this.displayedHealth);
+    if (this.spire) {
+      const numberElement = this.spire.querySelector('.gothic-spire-number');
+      if (numberElement) {
+        numberElement.textContent = displayValue;
+      }
+    }
+  }
+  
+  /**
+   * Update the active special ability display
+   * @param {string} specialName - The name of the active special
+   * @param {number} cost - The magic cost of the special
+   */
+  updateActiveSpecial(specialName, cost) {
+    // Create or update special ability indicator
+    if (!this.specialIndicator) {
+      this.specialIndicator = document.createElement('div');
+      this.specialIndicator.style.position = 'fixed';
+      this.specialIndicator.style.bottom = '24px';
+      this.specialIndicator.style.right = '24px';
+      this.specialIndicator.style.padding = '8px 12px';
+      this.specialIndicator.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+      this.specialIndicator.style.border = '2px solid #0055ff';
+      this.specialIndicator.style.borderRadius = '4px';
+      this.specialIndicator.style.color = '#ffffff';
+      this.specialIndicator.style.fontFamily = '"Cinzel", serif';
+      this.specialIndicator.style.fontSize = '14px';
+      this.specialIndicator.style.zIndex = '1000';
+      document.body.appendChild(this.specialIndicator);
+    }
+    
+    // Format the special name with proper capitalization
+    const formattedName = specialName.replace(/([A-Z])/g, ' $1')
+      .replace(/^./, str => str.toUpperCase());
+    
+    this.specialIndicator.textContent = `${formattedName} (${cost} MP)`;
+  }
+  
+  /**
+   * Flash the magic bar to indicate not enough magic
+   */
+  flashMagicBar() {
+    // Save original background
+    const originalBackground = this.magicBar.style.background;
+    
+    // Flash red
+    this.magicBar.style.background = 'linear-gradient(to bottom, #ff6666 0%, #ff0000 100%)';
+    
+    // Return to original color after a short delay
+    setTimeout(() => {
+      this.magicBar.style.background = originalBackground;
+    }, 300);
+  }
+  
+  /**
    * Clean up resources
    */
   dispose() {
     if (this.outerContainer && this.outerContainer.parentNode) {
       this.outerContainer.parentNode.removeChild(this.outerContainer);
+    }
+    
+    // Clean up special indicator if it exists
+    if (this.specialIndicator && this.specialIndicator.parentNode) {
+      this.specialIndicator.parentNode.removeChild(this.specialIndicator);
     }
     
     // Clean up the SVG filter if this is the last UI element using it

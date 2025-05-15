@@ -62,7 +62,9 @@ export class AshmoorScene extends THREE.Scene {
     if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
       this.mobileControls = new MobileControls();
     }
-    // TODO: Replace placeholder geometry with art assets
+    
+    // Add test keys for health and magic 
+    this._addTestKeys();
   }
 
   createSkybox() {
@@ -137,5 +139,38 @@ export class AshmoorScene extends THREE.Scene {
       this.sky.material.uniforms.time.value += 0.01;
     }
     this.player.update();
+  }
+
+  /**
+   * Add test keys for health and magic
+   * @private
+   */
+  _addTestKeys() {
+    // Only for testing/debugging UI
+    window.addEventListener('keydown', (e) => {
+      if (!this.player) return;
+      
+      switch (e.code) {
+        // Health controls (H/J)
+        case 'KeyH':
+          // Increase health
+          this.player.modifyHealth(10);
+          break;
+        case 'KeyJ':
+          // Decrease health
+          this.player.modifyHealth(-10);
+          break;
+          
+        // Magic controls (K/L)
+        case 'KeyK':
+          // Increase magic
+          this.player.modifyMagic(10);
+          break;
+        case 'KeyL':
+          // Decrease magic
+          this.player.modifyMagic(-10);
+          break;
+      }
+    });
   }
 } 

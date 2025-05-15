@@ -6,7 +6,9 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass';
 import { createPS1ShaderPass } from './shaders/PS1Shader';
 import { CollisionSystem } from './physics/CollisionSystem';
+import { UIManager } from './ui/UIManager';
 
+// Initialize the game canvas
 const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('game-canvas') });
 renderer.setSize(window.innerWidth, window.innerHeight);
 
@@ -17,6 +19,7 @@ const sceneManager = new SceneManager(renderer);
 
 let composer, renderPass, ps1Pass;
 let lastTime = 0;
+let uiManager;
 
 function setupComposer(scene, camera) {
   composer = new EffectComposer(renderer);
@@ -30,6 +33,12 @@ function startGame() {
   const ashmoor = new AshmoorScene(collisionSystem);
   sceneManager.setScene(ashmoor);
   setupComposer(ashmoor, ashmoor.camera);
+  
+  // Create UI manager after scene is initialized
+  if (uiManager) {
+    uiManager.dispose(); // Clean up old UI
+  }
+  uiManager = new UIManager(ashmoor);
   
   // Add collision listeners
   window.addEventListener('collision', (event) => {
@@ -45,6 +54,7 @@ function startGame() {
   });
 }
 
+// Initialize with start screen
 const startScreen = new StartScreen(() => {
   startGame();
 });
@@ -63,7 +73,14 @@ function animate(time) {
     // Update collision system with fixed time step
     collisionSystem.update(deltaTime);
     
+    // Update scene
     sceneManager.update();
+    
+    // Update UI if available
+    if (uiManager) {
+      uiManager.update();
+    }
+    
     if (ps1Pass) {
       ps1Pass.uniforms.time.value = time * 0.001;
     }

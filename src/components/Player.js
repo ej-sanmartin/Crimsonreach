@@ -12,6 +12,18 @@ export class Player {
     scene.add(this.mesh);
     this.scene = scene;
     
+    // Player stats
+    this.stats = {
+      health: {
+        max: 100,
+        current: 100
+      },
+      magic: {
+        max: 100,
+        current: 100
+      }
+    };
+    
     // Abilities system - all unlocked for debugging
     this.abilities = {
       doubleJump: { 
@@ -741,6 +753,8 @@ export class Player {
     
     this.updateAbilities();
     this.updateBoomerangs();
+
+    // Future: Add health and magic regeneration logic here
   }
 
   // Add cleanup method
@@ -748,5 +762,91 @@ export class Player {
     if (this.unsubscribe) {
       this.unsubscribe();
     }
+  }
+
+  /**
+   * Get player's current health
+   * @returns {number} Current health value
+   */
+  getHealth() {
+    return this.stats.health.current;
+  }
+
+  /**
+   * Get player's maximum health
+   * @returns {number} Maximum health value
+   */
+  getMaxHealth() {
+    return this.stats.health.max;
+  }
+
+  /**
+   * Set player's health
+   * @param {number} value - New health value
+   */
+  setHealth(value) {
+    this.stats.health.current = Math.min(Math.max(0, value), this.stats.health.max);
+    return this.stats.health.current;
+  }
+
+  /**
+   * Modify player's health
+   * @param {number} amount - Amount to change (positive = heal, negative = damage)
+   */
+  modifyHealth(amount) {
+    return this.setHealth(this.stats.health.current + amount);
+  }
+
+  /**
+   * Get player's current magic
+   * @returns {number} Current magic value
+   */
+  getMagic() {
+    return this.stats.magic.current;
+  }
+
+  /**
+   * Get player's maximum magic
+   * @returns {number} Maximum magic value
+   */
+  getMaxMagic() {
+    return this.stats.magic.max;
+  }
+
+  /**
+   * Set player's magic
+   * @param {number} value - New magic value
+   */
+  setMagic(value) {
+    this.stats.magic.current = Math.min(Math.max(0, value), this.stats.magic.max);
+    return this.stats.magic.current;
+  }
+
+  /**
+   * Modify player's magic
+   * @param {number} amount - Amount to change (positive = add, negative = consume)
+   */
+  modifyMagic(amount) {
+    return this.setMagic(this.stats.magic.current + amount);
+  }
+
+  /**
+   * Check if player has enough magic for a spell or ability
+   * @param {number} cost - Magic cost
+   * @returns {boolean} True if player has enough magic
+   */
+  hasMagic(cost) {
+    return this.stats.magic.current >= cost;
+  }
+
+  /**
+   * Consume magic if player has enough
+   * @param {number} cost - Magic cost
+   * @returns {boolean} True if magic was consumed
+   */
+  consumeMagic(cost) {
+    if (!this.hasMagic(cost)) return false;
+    this.modifyMagic(-cost);
+    return true;
   }
 } 

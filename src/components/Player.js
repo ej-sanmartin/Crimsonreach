@@ -20,7 +20,10 @@ export class Player {
       },
       magic: {
         max: 100,
-        current: 100
+        current: 100,
+        regenRate: 3,        // Amount of magic to regenerate
+        regenInterval: 300,  // Frames between regeneration (60 fps * 5 seconds = 300 frames)
+        regenTimer: 0        // Timer for regeneration
       },
       attack: 10,
       defense: 10,
@@ -816,7 +819,17 @@ export class Player {
     this.updateAbilities();
     this.updateBoomerangs();
 
-    // Future: Add health and magic regeneration logic here
+    // Magic regeneration
+    if (this.stats.magic.current < this.stats.magic.max) {
+      this.stats.magic.regenTimer++;
+      if (this.stats.magic.regenTimer >= this.stats.magic.regenInterval) {
+        this.modifyMagic(this.stats.magic.regenRate);
+        this.stats.magic.regenTimer = 0;
+      }
+    } else {
+      // Reset timer when magic is full
+      this.stats.magic.regenTimer = 0;
+    }
   }
 
   // Add cleanup method

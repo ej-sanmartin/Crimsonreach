@@ -161,6 +161,9 @@ export class StatusBars extends UIElement {
     // Set initial values
     this.setHealth(this.options.healthCurrent);
     this.setMagic(this.options.magicCurrent);
+    
+    // Ensure magic bar has the correct color
+    this._resetMagicBarColor();
   }
   
   /**
@@ -341,9 +344,156 @@ export class StatusBars extends UIElement {
    * @param {number} value - New magic value
    */
   setMagic(value) {
+    const previousValue = this.options.magicCurrent;
     this.options.magicCurrent = Math.min(Math.max(0, value), this.options.magicMax);
     const percentage = (this.options.magicCurrent / this.options.magicMax) * 100;
     this.magicBar.style.width = `${percentage}%`;
+    
+    // Update bar color if magic is completely depleted or restored
+    if (previousValue > 0 && this.options.magicCurrent === 0 || 
+        previousValue === 0 && this.options.magicCurrent > 0) {
+      this._resetMagicBarColor();
+    }
+    
+    // Show regeneration effect when magic is not full
+    if (this.options.magicCurrent < this.options.magicMax) {
+      this.showMagicRegenEffect();
+      
+      // Show depleted effect when magic is completely empty
+      if (this.options.magicCurrent === 0) {
+        this.showMagicDepletedEffect();
+      } else {
+        this.hideMagicDepletedEffect();
+      }
+    } else {
+      this.hideMagicRegenEffect();
+      this.hideMagicDepletedEffect();
+    }
+  }
+  
+  /**
+   * Show magic regeneration visual effect
+   */
+  showMagicRegenEffect() {
+    // Create regeneration effect if it doesn't exist
+    if (!this.magicRegenEffect) {
+      this.magicRegenEffect = document.createElement('div');
+      this.magicRegenEffect.className = 'magic-regen-effect';
+      this.magicRegenEffect.style.position = 'absolute';
+      this.magicRegenEffect.style.top = '0';
+      this.magicRegenEffect.style.left = '0';
+      this.magicRegenEffect.style.width = '100%';
+      this.magicRegenEffect.style.height = '100%';
+      this.magicRegenEffect.style.background = 
+        'linear-gradient(90deg, ' +
+        'rgba(0,85,255,0) 0%, ' +
+        'rgba(255,255,255,0.3) 50%, ' +
+        'rgba(0,85,255,0) 100%)';
+      this.magicRegenEffect.style.backgroundSize = '200% 100%';
+      this.magicRegenEffect.style.animation = 'magic-regen 5s linear infinite';
+      this.magicRegenEffect.style.pointerEvents = 'none';
+      this.magicBarContainer.appendChild(this.magicRegenEffect);
+      
+      // Add animation keyframes if they don't exist
+      if (!document.getElementById('magic-regen-style')) {
+        const style = document.createElement('style');
+        style.id = 'magic-regen-style';
+        style.textContent = `
+          @keyframes magic-regen {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+          }
+        `;
+        document.head.appendChild(style);
+      }
+    }
+    
+    // Make sure it's visible
+    this.magicRegenEffect.style.display = 'block';
+  }
+  
+  /**
+   * Hide magic regeneration visual effect
+   */
+  hideMagicRegenEffect() {
+    if (this.magicRegenEffect) {
+      this.magicRegenEffect.style.display = 'none';
+    }
+  }
+  
+  /**
+   * Show effect for completely depleted magic
+   */
+  showMagicDepletedEffect() {
+    // Create depleted effect if it doesn't exist
+    if (!this.magicDepletedEffect) {
+      this.magicDepletedEffect = document.createElement('div');
+      this.magicDepletedEffect.className = 'magic-depleted-effect';
+      this.magicDepletedEffect.style.position = 'absolute';
+      this.magicDepletedEffect.style.top = '0';
+      this.magicDepletedEffect.style.left = '0';
+      this.magicDepletedEffect.style.width = '100%';
+      this.magicDepletedEffect.style.height = '100%';
+      this.magicDepletedEffect.style.background = 'rgba(0, 0, 0, 0.5)';
+      this.magicDepletedEffect.style.border = '1px solid #0055ff';
+      this.magicDepletedEffect.style.boxShadow = '0 0 5px #0055ff inset';
+      this.magicDepletedEffect.style.animation = 'magic-depleted 1s ease-in-out infinite';
+      this.magicDepletedEffect.style.pointerEvents = 'none';
+      this.magicBarContainer.appendChild(this.magicDepletedEffect);
+      
+      // Add animation keyframes if they don't exist
+      if (!document.getElementById('magic-depleted-style')) {
+        const style = document.createElement('style');
+        style.id = 'magic-depleted-style';
+        style.textContent = `
+          @keyframes magic-depleted {
+            0% { opacity: 0.3; }
+            50% { opacity: 0.7; }
+            100% { opacity: 0.3; }
+          }
+        `;
+        document.head.appendChild(style);
+      }
+    }
+    
+    // Make sure it's visible
+    this.magicDepletedEffect.style.display = 'block';
+  }
+  
+  /**
+   * Hide depleted magic effect
+   */
+  hideMagicDepletedEffect() {
+    if (this.magicDepletedEffect) {
+      this.magicDepletedEffect.style.display = 'none';
+    }
+  }
+  
+  /**
+   * Reset magic bar color to its default state based on current magic value
+   * @private
+   */
+  _resetMagicBarColor() {
+    if (this.options.magicCurrent === 0) {
+      // Darker blue for empty bar
+      this.magicBar.style.background = 'linear-gradient(to bottom, #3377cc 0%, #0044cc 100%)';
+    } else {
+      // Standard blue for non-empty bar
+      this.magicBar.style.background = 'linear-gradient(to bottom, #66aaff 0%, #0055ff 100%)';
+    }
+  }
+  
+  /**
+   * Flash the magic bar to indicate not enough magic
+   */
+  flashMagicBar() {
+    // Flash red
+    this.magicBar.style.background = 'linear-gradient(to bottom, #ff6666 0%, #ff0000 100%)';
+    
+    // Return to appropriate color after a short delay
+    setTimeout(() => {
+      this._resetMagicBarColor();
+    }, 300);
   }
   
   /**
@@ -361,6 +511,9 @@ export class StatusBars extends UIElement {
         numberElement.textContent = displayValue;
       }
     }
+    
+    // Ensure magic bar has the correct color
+    this._resetMagicBarColor();
   }
   
   /**
@@ -394,22 +547,6 @@ export class StatusBars extends UIElement {
   }
   
   /**
-   * Flash the magic bar to indicate not enough magic
-   */
-  flashMagicBar() {
-    // Save original background
-    const originalBackground = this.magicBar.style.background;
-    
-    // Flash red
-    this.magicBar.style.background = 'linear-gradient(to bottom, #ff6666 0%, #ff0000 100%)';
-    
-    // Return to original color after a short delay
-    setTimeout(() => {
-      this.magicBar.style.background = originalBackground;
-    }, 300);
-  }
-  
-  /**
    * Clean up resources
    */
   dispose() {
@@ -422,9 +559,27 @@ export class StatusBars extends UIElement {
       this.specialIndicator.parentNode.removeChild(this.specialIndicator);
     }
     
+    // Clean up magic regeneration style if this is the last UI element using it
+    const otherRegenElements = document.querySelectorAll('.magic-regen-effect');
+    if (otherRegenElements.length <= 1) { // Only this one or none
+      const regenStyle = document.getElementById('magic-regen-style');
+      if (regenStyle && regenStyle.parentNode) {
+        regenStyle.parentNode.removeChild(regenStyle);
+      }
+    }
+    
+    // Clean up magic depleted style if this is the last UI element using it
+    const otherDepletedElements = document.querySelectorAll('.magic-depleted-effect');
+    if (otherDepletedElements.length <= 1) { // Only this one or none
+      const depletedStyle = document.getElementById('magic-depleted-style');
+      if (depletedStyle && depletedStyle.parentNode) {
+        depletedStyle.parentNode.removeChild(depletedStyle);
+      }
+    }
+    
     // Clean up the SVG filter if this is the last UI element using it
-    const otherUIElements = document.querySelectorAll('[style*="url(#pixel-filter)"]');
-    if (otherUIElements.length === 0) {
+    const otherFilterElements = document.querySelectorAll('[style*="url(#pixel-filter)"]');
+    if (otherFilterElements.length === 0) {
       const filter = document.getElementById('ps1-ui-filters');
       if (filter && filter.parentNode) {
         filter.parentNode.removeChild(filter);

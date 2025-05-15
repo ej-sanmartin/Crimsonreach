@@ -28,9 +28,6 @@ export class StatusBars extends UIElement {
     this.displayedHealth = this.options.healthCurrent;
     this.lerpFactor = 0.1; // Adjust for faster/slower transitions
     
-    // Create SVG filter for pixelation effect
-    this._createPixelationFilter();
-    
     // Create outer flex container
     this.outerContainer = document.createElement('div');
     this.outerContainer.style.position = 'fixed';
@@ -167,29 +164,6 @@ export class StatusBars extends UIElement {
   }
   
   /**
-   * Create SVG filter for pixelation effect
-   * @private
-   */
-  _createPixelationFilter() {
-    if (!document.getElementById('ps1-ui-filters')) {
-      const svgFilter = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      svgFilter.id = 'ps1-ui-filters';
-      svgFilter.style.width = '0';
-      svgFilter.style.height = '0';
-      svgFilter.style.position = 'absolute';
-      svgFilter.style.zIndex = '-1000';
-      svgFilter.innerHTML = `
-        <filter id="pixel-filter">
-          <feGaussianBlur stdDeviation="0.2" />
-          <feTurbulence type="fractalNoise" baseFrequency="0.4" numOctaves="1" stitchTiles="stitch" result="noise"/>
-          <feComposite operator="arithmetic" k1="0" k2="0.02" k3="0" k4="0" in="SourceGraphic" in2="noise"/>
-        </filter>
-      `;
-      document.body.appendChild(svgFilter);
-    }
-  }
-  
-  /**
    * Apply gothic border style to an element
    * @param {HTMLElement} element - The element to style
    * @private
@@ -297,7 +271,7 @@ export class StatusBars extends UIElement {
    */
   _createBarContainer() {
     const container = document.createElement('div');
-    container.style.width = '250px';
+    container.style.width = '300px';
     container.style.height = '15px';
     container.style.marginBottom = '5px';
     container.style.background = 'rgba(0, 0, 0, 0.7)';
